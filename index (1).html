@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scheme Sakhi – The Invisible Woman</title>
+<style>
+:root{--bg:#fff4f8;--fg:#2b2330;--card:#fff;--pink:#d81b60;--green:#2e7d32;--amber:#f9a825;--mut:#7a6a80}
+@media (prefers-color-scheme:dark){:root{--bg:#1d1520;--fg:#f6e9f1;--card:#2b2030;--mut:#b9a6c0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"Noto Sans Tamil","Noto Sans Devanagari",sans-serif;text-align:center}
+main{max-width:720px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:28px;margin:6px 0}
+.sub{color:var(--mut);margin:0 0 14px;font-size:15px}
+.langs{display:flex;gap:8px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
+.langs button{font-size:18px;padding:10px 18px;border-radius:99px;border:2px solid var(--pink);background:transparent;color:var(--fg);cursor:pointer}
+.langs button.on{background:var(--pink);color:#fff}
+#mic{width:200px;height:200px;border-radius:50%;border:none;font-size:90px;background:var(--pink);color:#fff;cursor:pointer;box-shadow:0 8px 24px #d81b6666}
+#mic.listening{background:var(--green);animation:p 1s infinite}
+#mic.thinking{background:var(--amber)}
+@keyframes p{50%{transform:scale(1.07)}}
+#say{font-size:26px;line-height:1.5;min-height:110px;margin:22px 0;padding:18px;background:var(--card);border-radius:18px}
+.typed{display:flex;gap:8px;margin-bottom:26px}
+.typed input{flex:1;font-size:18px;padding:12px;border-radius:12px;border:2px solid var(--mut);background:var(--card);color:var(--fg);min-width:0}
+.typed button{font-size:18px;padding:12px 18px;border-radius:12px;border:none;background:var(--pink);color:#fff;cursor:pointer}
+h2{font-size:20px;margin:10px 0}
+.step{display:flex;gap:14px;align-items:center;text-align:left;background:var(--card);padding:14px;border-radius:16px;margin-bottom:12px;cursor:pointer;border:2px solid transparent}
+.step.on{border-color:var(--pink)}
+.step .ic{font-size:38px}.step .tx{font-size:20px;flex:1}
+.note{font-size:13px;color:var(--mut);margin-top:24px}
+#setup{background:var(--card);border-radius:14px;padding:12px;margin-bottom:16px;font-size:14px;display:none}
+#setup input{width:70%;padding:8px;font-size:14px}
+#setup button{padding:8px 12px}
+.gear{background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+  <h1>🌸 Scheme Sakhi</h1>
+  <p class="sub">Pudhumai Penn · ₹1000 / month for girls' higher education<br>Voice-first guide · powered by Google Gemini</p>
+  <div class="langs" id="langs"></div>
+
+  <div id="setup">
+    Paste your free Gemini API key (from aistudio.google.com). It is saved only in this browser.<br><br>
+    <input id="key" type="password" placeholder="AIza..."> <button id="saveKey">Save</button>
+  </div>
+
+  <button id="mic" aria-label="Speak">🎤</button>
+  <div id="say">👆 🎤</div>
+
+  <div class="typed">
+    <input id="inp" placeholder="✍️ …" autocomplete="off">
+    <button id="go">➤</button>
+  </div>
+
+  <h2 id="stepsTitle"></h2>
+  <div id="steps"></div>
+
+  <p class="note">Always confirm details at the college office or the official Tamil Nadu government website.<br>
+  SDG 5 (5.1, 5.b) · SDG 4 (4.3, 4.4) · SDG 10 (10.2)<br>
+  <button class="gear" id="gear">⚙ API key</button></p>
+</main>
+
+<script>
+// Optional: paste your key here. Do NOT commit a real key to a public GitHub repo.
+const GEMINI_API_KEY = "";
+const MODEL = "gemini-2.5-flash";
+
+const INFO = `Scheme: Pudhumai Penn (Tamil Nadu government).
+Who: girls who studied in government schools from class 6 to 12 and join college (degree, diploma, ITI) after school.
+Benefit: Rs 1000 every month into her bank account while she studies.
+Documents: Aadhaar card, bank passbook, school certificate (TC/marksheet), college admission proof.
+How to apply: through her college; the college office helps submit the form.
+Where to ask: college office or the school headmistress.`;
+
+const L = {
+  ta:{n:'தமிழ்',nm:'Tamil',code:'ta-IN',title:'படிப்படியாக 👇',
+    greet:'வணக்கம்! பெரிய பொத்தானை அழுத்தி என்னிடம் பேசுங்கள். நான் உதவுகிறேன்.',
+    err:'மன்னிக்கவும், மீண்டும் ஒருமுறை சொல்லுங்கள்.',
+    steps:[['🎓','நீங்கள் அரசு பள்ளியில் 6 முதல் 12 வரை படித்திருந்தால் இந்த உதவித்தொகை உங்களுக்கு.'],
+      ['💰','கல்லூரியில் படிக்கும் வரை மாதம் ஆயிரம் ரூபாய் வங்கிக் கணக்கில் வரும்.'],
+      ['📄','ஆதார் அட்டை, வங்கி புத்தகம், பள்ளி சான்றிதழ், கல்லூரி சேர்க்கை சான்று எடுத்துக்கொள்ளுங்கள்.'],
+      ['🏫','கல்லூரி அலுவலகத்திற்குச் செல்லுங்கள். அவர்கள் விண்ணப்பிக்க உதவுவார்கள்.']]},
+  hi:{n:'हिन्दी',nm:'Hindi',code:'hi-IN',title:'कदम दर कदम 👇',
+    greet:'नमस्ते! बड़े बटन को दबाइए और मुझसे बात कीजिए। मैं आपकी मदद करूँगी।',
+    err:'माफ़ कीजिए, कृपया फिर से बोलिए।',
+    steps:[['🎓','अगर आपने सरकारी स्कूल में कक्षा 6 से 12 तक पढ़ाई की है, तो यह योजना आपके लिए है।'],
+      ['💰','कॉलेज में पढ़ने तक हर महीने एक हज़ार रुपये बैंक खाते में आएंगे।'],
+      ['📄','आधार कार्ड, बैंक पासबुक, स्कूल प्रमाणपत्र और कॉलेज दाखिले का सबूत लीजिए।'],
+      ['🏫','कॉलेज के दफ़्तर जाइए। वे फ़ॉर्म भरने में मदद करेंगे।']]},
+  en:{n:'English',nm:'simple English',code:'en-IN',title:'Step by step 👇',
+    greet:'Hello! Press the big button and talk to me. I will help you.',
+    err:'Sorry, please say it once more.',
+    steps:[['🎓','If you studied in a government school from class 6 to 12, this is for you.'],
+      ['💰','You get one thousand rupees every month in your bank account while you study.'],
+      ['📄','Keep ready: Aadhaar card, bank passbook, school certificate, college admission proof.'],
+      ['🏫','Go to the college office. They will help you fill the form.']]}
+};
+let lang='ta', started=false, history=[], busy=false;
+const $=id=>document.getElementById(id);
+const mic=$('mic'), say=$('say');
+const getKey=()=>GEMINI_API_KEY||localStorage.getItem('gkey')||'';
+
+function speak(t){
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=L[lang].code;u.rate=.9;speechSynthesis.speak(u);}catch(e){}
+}
+function show(t,voice=true){say.textContent=t;if(voice)speak(t);}
+
+function render(){
+  $('langs').innerHTML='';
+  for(const k in L){const b=document.createElement('button');b.textContent=L[k].n;b.className=k===lang?'on':'';
+    b.onclick=()=>{lang=k;history=[];render();started=true;show(L[k].greet);};$('langs').appendChild(b);}
+  $('stepsTitle').textContent=L[lang].title;
+  $('steps').innerHTML='';
+  L[lang].steps.forEach(([ic,tx],i)=>{
+    const d=document.createElement('div');d.className='step';
+    d.innerHTML=`<span class="ic">${ic}</span><span class="tx">${i+1}. ${tx}</span><span class="ic">🔊</span>`;
+    d.onclick=()=>{document.querySelectorAll('.step').forEach(s=>s.classList.remove('on'));d.classList.add('on');show(tx);};
+    $('steps').appendChild(d);});
+  if(rec)rec.lang=L[lang].code;
+}
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const rec=SR?new SR():null;
+if(rec){rec.interimResults=false;
+  rec.onresult=e=>ask(e.results[0][0].transcript);
+  rec.onerror=()=>{mic.className='';show(L[lang].err);};
+  rec.onend=()=>{if(mic.className==='listening')mic.className='';};}
+
+mic.onclick=()=>{
+  if(!started){started=true;show(L[lang].greet);return;}
+  if(!rec){show('✍️ ↓',false);$('inp').focus();return;}
+  speechSynthesis.cancel();mic.className='listening';
+  try{rec.start();}catch(e){}
+};
+$('go').onclick=()=>{const v=$('inp').value.trim();if(v){$('inp').value='';ask(v);}};
+$('inp').onkeydown=e=>{if(e.key==='Enter')$('go').click();};
+$('gear').onclick=()=>{$('setup').style.display='block';};
+$('saveKey').onclick=()=>{localStorage.setItem('gkey',$('key').value.trim());$('setup').style.display='none';show(L[lang].greet);};
+
+function systemPrompt(){return `You are a kind older-sister helper for a woman who has never used the internet. Reply ONLY in ${L[lang].nm}, in very short, simple everyday sentences, with no technical words and no English words (unless the language is English). Talk ONLY about the scheme below and use ONLY this information; if you do not know, say so and tell her to ask at the college office or panchayat office. Never guess. Give ONE step at a time (max 3 short sentences), then ask if she understood. If she is confused, repeat more simply. No bullets, asterisks or emojis because the reply is read aloud.\n\nSCHEME INFO:\n${INFO}`;}
+
+async function ask(text){
+  if(busy)return;
+  say.textContent='…'+text;
+  const key=getKey();
+  if(!key){$('setup').style.display='block';show('🔑 Add the Gemini key below first.',false);return;}
+  busy=true;mic.className='thinking';
+  history.push({role:'user',parts:[{text}]});
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':key},
+      body:JSON.stringify({
+        systemInstruction:{parts:[{text:systemPrompt()}]},
+        contents:history,
+        generationConfig:{temperature:0.4,thinkingConfig:{thinkingBudget:0}}
+      })});
+    if(!r.ok)throw new Error(await r.text());
+    const j=await r.json();
+    const reply=j.candidates[0].content.parts.map(p=>p.text||'').join('').trim();
+    history.push({role:'model',parts:[{text:reply}]});
+    show(reply);
+  }catch(e){console.error(e);history.pop();show(L[lang].err);}
+  busy=false;mic.className='';
+}
+
+render();
+if(!getKey())$('setup').style.display='block';
+</script>
+</body>
+</html>
